@@ -46,7 +46,7 @@
 
 4. scoring.combine_signals gives it a combined score of a weighted average of model_score and style_score, currently 50/50 (0.5 each), giving one 0–1 combined score.
 
-5. scoring.score_to_label At or above 0.85 is "ai", at or below 0.35 is "human", and anything between is "unsure". It produces two things: a short guess and a plain-English sentence the person reads.
+5. scoring.score_to_label At or above 0.82 is "ai", at or below 0.35 is "human", and anything between is "unsure". It produces two things: a short guess and a plain-English sentence the person reads.
 
 6. audit.log_decision records a record of the decision. What gets recorded is timestamp, content_id, creator_id, scores and combined scores, the label, and status decided.
 
@@ -115,7 +115,7 @@ accusing someone based on one signal.
 
 **The numbers:**
 `combined = 0.5 × model_score + 0.5 × style_score`
-- combined ≥ 0.85 → "ai"
+- combined ≥ 0.82 → "ai"
 - combined ≤ 0.35 → "human"
 - anything between → "unsure"
 
@@ -166,12 +166,14 @@ are wrong in the same direction still gives the wrong answer: at a 0.65
 cutoff, 0.812 → "ai". The Gettysburg Address (0.671) and the edited AI (0.690)
 also land just above 0.65, so two of my three human texts would be called AI.
 
-**So I raised the "ai" cutoff from 0.65 to 0.85.** Now the plain human text
+**So I raised the "ai" cutoff from 0.65 to 0.82.** Now the plain human text
 (0.812), the Gettysburg Address (0.671) and the edited AI (0.690) all read
-"unsure" instead of "ai". That's the trade from my Milestone 1 trace: fewer
-wrong accusations, and more AI text getting through as "unsure". The cost is
-real: my clearly-AI input (0.848) also falls just under 0.85, so on these
-inputs nothing reaches "ai" yet.
+"unsure" instead of "ai", while the clearly-AI input (0.848) still reads "ai".
+That's the trade from my Milestone 1 trace: fewer wrong accusations, and more
+AI text getting through as "unsure". I tried 0.85 first, but then nothing
+reached "ai" at all. The margins are thin: the plain human text sits only
+0.008 under the cutoff and the clearly-AI text only 0.028 over it, so a
+slightly different run could flip either one.
 
 
 
