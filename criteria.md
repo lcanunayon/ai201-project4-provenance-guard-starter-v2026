@@ -45,11 +45,13 @@ Two things worth knowing before you pick numbers:
 ## 1.
 
 <!-- Your criterion. It must name a number. -->
-
+Of 5 pieces I wrote myself (including 1 written in deliberately plain, simple English), none gets the "ai" label, in all 3 trials.
 
 
 **Why this target:**
-
+I do not want a humans writing to be marked as AI, and I
+want to have the model do that as little as possible. A 
+wrong accusations hurts a real person, while a missed AI text would cost the site a little.
 
 
 ---
@@ -57,11 +59,11 @@ Two things worth knowing before you pick numbers:
 ## 2.
 
 <!-- Your criterion. -->
-
+The average combined_score of 5 clearly-AI texts is at least 0.5 higher than the average of 5 clearly-human texts, in all 3 trials.
 
 
 **Why this target:**
-
+Human is ≤ 0.35 and AI is ≥ 0.65, so the bands are 0.3 apart. A spread of 0.5 is big enough so each score should fall into their own baskets in each label.
 
 
 ---
@@ -69,11 +71,11 @@ Two things worth knowing before you pick numbers:
 ## 3.
 
 <!-- Your criterion. -->
-
+Of my test texts, at least one gets ai, one human, and one unsure, in all 3 trials.
 
 
 **Why this target:**
-
+Human is ≤ 0.35 and AI is ≥ 0.65 and unsure is inbetween, so the three labels should be reachable in different trials from each other.
 
 
 ---
@@ -81,11 +83,11 @@ Two things worth knowing before you pick numbers:
 ## 4.
 
 <!-- Your criterion. -->
-
+All 5 appeals with a real content_id are written to the log and change status to under_review. An appeal with a made-up content_id returns 404 and writes nothing.
 
 
 **Why this target:**
-
+The appeal is the only thing between a wrong accusation and nothing at all, so it can't fail even once.
 
 
 ---
@@ -93,11 +95,12 @@ Two things worth knowing before you pick numbers:
 ## 5.
 
 <!-- Your criterion. -->
-
+If text is missing, empty, or enormous, it must go through
+0 out of 5 test trials. missing text, empty "", only spaces, and over 20,000 characters are cases where this should happen, and should return an error message with code 400, and never get a score or label.
 
 
 **Why this target:**
-
+Empty text would get a meaningless score, enormous text slows the detector for everyone, and a crash on bad input is one of the most common real failures.
 
 
 ---
