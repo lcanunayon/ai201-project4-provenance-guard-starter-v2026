@@ -200,6 +200,8 @@ def submit():
     a malformed input is one of the most common real failures there is.
     """
     import detector
+    import scoring
+    import stylometry
 
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
@@ -226,12 +228,15 @@ def submit():
     except detector.DetectorUnavailable as exc:
         return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
 
-    # Milestone 3: one signal only. Guess, confidence and label are
-    # placeholders until scoring.py is built in Milestones 4 and 5.
+    style_score = stylometry.style_signal(text)
+    combined_score = scoring.combine_signals(model_score, style_score)
+    # How far from the undecided middle, 0-1 (contract in milestone1.md).
+    confidence = round(abs(combined_score - 0.5) * 2, 4)
+
+    # Milestone 4: guess and label are placeholders until score_to_label is
+    # written in Milestone 5.
     guess = "pending"
     label = "PLACEHOLDER — label comes in Milestone 5."
-    confidence = None
-    style_score = None
 
     audit.log_decision(
         content_id=content_id,
@@ -239,6 +244,7 @@ def submit():
         guess=guess,
         model_score=model_score,
         style_score=style_score,
+        combined_score=combined_score,
         label=label,
     )
 
@@ -249,6 +255,7 @@ def submit():
         "label": label,
         "model_score": model_score,
         "style_score": style_score,
+        "combined_score": combined_score,
     })
 
 

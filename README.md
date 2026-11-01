@@ -46,7 +46,7 @@
 
 4. scoring.combine_signals gives it a combined score of a weighted average of model_score and style_score, currently 50/50 (0.5 each), giving one 0–1 combined score.
 
-5. scoring.score_to_label At or above 0.65 is "ai", at or below 0.35 is "human", and anything between is "unsure". It produces two things: a short guess and a plain-English sentence the person reads.
+5. scoring.score_to_label At or above 0.85 is "ai", at or below 0.35 is "human", and anything between is "unsure". It produces two things: a short guess and a plain-English sentence the person reads.
 
 6. audit.log_decision records a record of the decision. What gets recorded is timestamp, content_id, creator_id, scores and combined scores, the label, and status decided.
 
@@ -115,7 +115,7 @@ accusing someone based on one signal.
 
 **The numbers:**
 `combined = 0.5 × model_score + 0.5 × style_score`
-- combined ≥ 0.65 → "ai"
+- combined ≥ 0.85 → "ai"
 - combined ≤ 0.35 → "human"
 - anything between → "unsure"
 
@@ -124,14 +124,54 @@ accusing someone based on one signal.
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
+**How the style score is built:** `stylometry.py::style_signal`. Each measure is
+placed on a 0–1 line between an AI anchor and a human anchor taken from the
+calibration inputs below, then `style = 0.6 × spread + 0.4 × punctuation`.
+
+| Measure | AI anchor (→ 1.0) | Human anchor (→ 0.0) | Weight |
+|---|---|---|---|
+| Sentence-length spread (stdev ÷ mean) | 0.25 | 0.75 | 0.6 |
+| "Choice" punctuation per word (, ; : — ( ) " ! ?) | 0.02 | 0.14 | 0.4 |
+| Type-token ratio (moving 50-word window) | — | — | 0 |
+
+The type-token ratio has no weight because it pointed the wrong way when I
+measured it: the AI text had *more* varied vocabulary (0.865) than Twain
+(0.711). A one-sentence text has no spread, so that half counts as 0.5 (no
+evidence) instead of guessing AI.
+
+**Calibration inputs (Milestone 4):**
+
+| Input | model | spread | type-token | punct | style | combined |
+|---|---|---|---|---|---|---|
+| Clearly AI (written by Claude) | 0.850 | 0.311 | 0.865 | 0.044 | 0.847 | **0.848** |
+| Clearly human (Twain, *Huckleberry Finn*) | 0.454 | 0.721 | 0.711 | 0.130 | 0.070 | **0.262** |
+| Formal human (Lincoln, Gettysburg Address) | 0.727 | 0.438 | 0.758 | 0.068 | 0.615 | **0.671** |
+| Plain human (placeholder, short simple sentences) | 0.826 | 0.397 | 0.833 | 0.027 | 0.799 | **0.812** |
+| Lightly-edited AI (the AI text, hand-edited) | 0.748 | 0.506 | 0.857 | 0.038 | 0.632 | **0.690** |
+
+Clearly AI and clearly human score 0.586 apart.
+
 **A case where my two signals split, and what my rule does with it:**
-(Expected case — to be replaced with a real measured one in Milestone 4.)
-A student writing in a second language uses short, common words, so signal one
-finds the text predictable: `model_score` ≈ 0.8. But their sentence lengths
-vary naturally, so signal two reads it as human: `style_score` ≈ 0.3.
-Combined: 0.5 × 0.8 + 0.5 × 0.3 = **0.55 → "unsure"**. The equal weighting
-stops signal one's blind spot from turning into an "ai" accusation on its own,
-though the student still sees "unsure" on work they wrote themselves.
+Twain. Signal one gives 0.454, close to a coin flip, because his words are
+ordinary. Signal two gives 0.070, strongly human, because his sentences run
+from 3 to 33 words and are full of commas and dashes. Combined:
+0.5 × 0.454 + 0.5 × 0.070 = **0.262 → "human"**. Here the average works: the
+style signal is confident, so it pulls an uncertain model score into the human
+band.
+
+**What the rule can't fix:** the plain human text isn't a split case. Both
+signals call it AI-like (0.826 and 0.799), because short, even, lightly
+punctuated sentences fool both of them the same way. Averaging two signals that
+are wrong in the same direction still gives the wrong answer: at a 0.65
+cutoff, 0.812 → "ai". The Gettysburg Address (0.671) and the edited AI (0.690)
+also land just above 0.65, so two of my three human texts would be called AI.
+
+**So I raised the "ai" cutoff from 0.65 to 0.85.** Now the plain human text
+(0.812), the Gettysburg Address (0.671) and the edited AI (0.690) all read
+"unsure" instead of "ai". That's the trade from my Milestone 1 trace: fewer
+wrong accusations, and more AI text getting through as "unsure". The cost is
+real: my clearly-AI input (0.848) also falls just under 0.85, so on these
+inputs nothing reaches "ai" yet.
 
 
 

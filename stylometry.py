@@ -63,9 +63,18 @@ def sentence_length_spread(text: str) -> float:
     Watch the edge case: a one-sentence submission has no spread at all, and
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
+
+    Mine: the coefficient of variation — stdev of sentence lengths (in words)
+    divided by their mean. 0 means every sentence is the same length; around
+    0.6 or more is lumpy, human-looking text. **Higher = more human.**
+    Fewer than two sentences has no spread to measure, so it returns 0.0 —
+    and style_signal treats that case as "no evidence" rather than "AI".
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(s)) for s in sentences(text)]
+    lengths = [n for n in lengths if n > 0]
+    if len(lengths) < 2:
+        return 0.0
+    return round(statistics.stdev(lengths) / statistics.mean(lengths), 4)
 
 
 def type_token_ratio(text: str) -> float:
@@ -79,9 +88,26 @@ def type_token_ratio(text: str) -> float:
     longer, because common words repeat. Two texts of different lengths aren't
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
+
+    Mine uses a moving window to dodge that: the type-token ratio of every run
+    of WINDOW consecutive words, averaged (MATTR). A 60-word answer and a
+    600-word essay then sit on the same scale. Text shorter than one window
+    falls back to the plain ratio. Higher = more varied vocabulary.
+
+    ⚠️ Measured, the direction ran the other way from what I expected: on my
+    calibration inputs the AI text scored HIGHER (0.865) than Twain (0.711) —
+    assistant prose reaches for varied synonyms, while a storyteller repeats
+    "true", "book", "Aunt Polly". So style_signal reports this but gives it no
+    weight. See README "Signals and Scoring".
     """
-    # TODO: replace this
-    return 0.0
+    toks = words(text)
+    if not toks:
+        return 0.0
+    window = 50
+    if len(toks) <= window:
+        return round(len(set(toks)) / len(toks), 4)
+    ratios = [len(set(toks[i:i + window])) / window for i in range(len(toks) - window + 1)]
+    return round(sum(ratios) / len(ratios), 4)
 
 
 def punctuation_density(text: str) -> float:
@@ -93,9 +119,18 @@ def punctuation_density(text: str) -> float:
         semicolons, dashes — is a real choice. Semicolons and em dashes are
         more interesting than full stops, because they vary more between
         writers.
+
+    Mine counts only the "choice" marks — commas, semicolons, colons, dashes,
+    parentheses, quotation marks, ! and ? — and leaves out full stops and
+    apostrophes, which every writer uses about equally. Returned as marks per
+    word, so it doesn't grow with length. Which direction is more human is
+    settled by measurement, not assumption — see style_signal.
     """
-    # TODO: replace this
-    return 0.0
+    toks = words(text)
+    if not toks:
+        return 0.0
+    marks = re.findall(r"[,;:()\"“”!?—–]|(?<!\w)-(?!\w)", text)
+    return round(len(marks) / len(toks), 4)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +157,31 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    # Each measure is mapped onto 0-1 "AI-ness" by a straight line between two
+    # anchors read off the calibration inputs (README "Signals and Scoring"):
+    # at or past the AI anchor -> 1.0, at or past the human anchor -> 0.0.
+    #
+    #   sentence spread   AI anchor 0.25   human anchor 0.75   (low = AI)
+    #   punctuation       AI anchor 0.02   human anchor 0.14   (low = AI)
+    #   type-token ratio  weight 0 — it pointed the wrong way when measured
+    #
+    # Spread gets the larger share because it separated the inputs most
+    # cleanly. A one-sentence text has no spread, so that part is 0.5:
+    # no evidence either way, rather than a guess that it's AI.
+    if len(sentences(text)) < 2:
+        spread_ai = 0.5
+    else:
+        spread_ai = _towards_ai(sentence_length_spread(text), ai=0.25, human=0.75)
+    punct_ai = _towards_ai(punctuation_density(text), ai=0.02, human=0.14)
+
+    score = 0.6 * spread_ai + 0.4 * punct_ai
+    return round(score, 4)
+
+
+def _towards_ai(value: float, ai: float, human: float) -> float:
+    """Place value on a 0-1 line where `ai` maps to 1.0 and `human` to 0.0."""
+    position = (value - human) / (ai - human)
+    return min(max(position, 0.0), 1.0)
 
 
 if __name__ == "__main__":
@@ -139,4 +197,3 @@ if __name__ == "__main__":
     print(f"type_token_ratio         {type_token_ratio(text)}")
     print(f"punctuation_density      {punctuation_density(text)}")
     print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")
