@@ -174,11 +174,21 @@ though the student still sees "unsure" on work they wrote themselves.
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "Grandma'\''s kitchen smelled like burnt cardamom and wet dog, which sounds awful but honestly I'\''d pay money to smell it again. She swore at the radiator in Tagalog every winter. Nobody fixed it. Nobody dared.", "creator_id": "angelo"}'
 ```
 
-```json
+<!-- Milestone 3: one signal only. guess, confidence, label and style_score
+     are placeholders until Milestones 4 and 5. -->
 
+```json
+{
+  "confidence": null,
+  "content_id": "07b2a500-81c5-4b25-a2d7-d59cf4da4c58",
+  "guess": "pending",
+  "label": "PLACEHOLDER — label comes in Milestone 5.",
+  "model_score": 0.1793,
+  "style_score": null
+}
 ```
 
 **An appeal**
@@ -196,11 +206,59 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl "http://127.0.0.1:5000/log"
 ```
 
-```json
+<!-- Milestone 3: the submission above, then four bad inputs (blank text,
+     missing creator_id, a JSON list, 30,000 characters) — each refused with
+     a 400 and logged as a rejection. No appeal exists yet. -->
 
+```json
+{
+  "count": 5,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "07b2a500-81c5-4b25-a2d7-d59cf4da4c58",
+      "creator_id": "angelo",
+      "guess": "pending",
+      "label": "PLACEHOLDER — label comes in Milestone 5.",
+      "model_score": 0.1793,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-11-01T23:48:07+00:00"
+    },
+    {
+      "creator_id": "angelo",
+      "event": "rejected",
+      "reason": "missing_text",
+      "status": "rejected",
+      "timestamp": "2026-11-01T23:48:07+00:00"
+    },
+    {
+      "creator_id": "unknown",
+      "event": "rejected",
+      "reason": "missing_creator_id",
+      "status": "rejected",
+      "timestamp": "2026-11-01T23:48:07+00:00"
+    },
+    {
+      "creator_id": "unknown",
+      "event": "rejected",
+      "reason": "invalid_json",
+      "status": "rejected",
+      "timestamp": "2026-11-01T23:48:07+00:00"
+    },
+    {
+      "creator_id": "angelo",
+      "event": "rejected",
+      "reason": "text_too_long",
+      "status": "rejected",
+      "text_length": 30000,
+      "timestamp": "2026-11-01T23:48:07+00:00"
+    }
+  ]
+}
 ```
 
 ---

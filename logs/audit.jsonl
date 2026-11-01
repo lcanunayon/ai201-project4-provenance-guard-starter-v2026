@@ -1,0 +1,5 @@
+{"timestamp": "2026-11-01T23:48:07+00:00", "content_id": "07b2a500-81c5-4b25-a2d7-d59cf4da4c58", "creator_id": "angelo", "guess": "pending", "model_score": 0.1793, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — label comes in Milestone 5.", "status": "decided"}
+{"timestamp": "2026-11-01T23:48:07+00:00", "creator_id": "angelo", "event": "rejected", "status": "rejected", "reason": "missing_text"}
+{"timestamp": "2026-11-01T23:48:07+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "missing_creator_id"}
+{"timestamp": "2026-11-01T23:48:07+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "invalid_json"}
+{"timestamp": "2026-11-01T23:48:07+00:00", "creator_id": "angelo", "event": "rejected", "status": "rejected", "reason": "text_too_long", "text_length": 30000}
