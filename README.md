@@ -86,9 +86,11 @@ with unusual vocabulary to look less predictable.
 ### Signal two — the style signal
 
 **What it measures:**
-The shape of the text, not its meaning: how much sentence lengths vary, how
-much vocabulary repeats (type-token ratio), and how much and how varied the
-punctuation is. Combined into a 0–1 `style_score`.
+The shape of the text, not its meaning: how much sentence lengths vary and how
+much "choice" punctuation (commas, semicolons, dashes, quotes) it uses. Those
+two are combined into a 0–1 `style_score`. It also measures how much vocabulary
+repeats (type-token ratio), but that measure gets no weight in the score
+because it pointed the wrong way when I tested it (see the table below).
 
 **Why that might differ between human and AI writing:**
 AI writing tends toward even, mid-length sentences and a narrower range of
@@ -188,14 +190,41 @@ slightly different run could flip either one.
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 – 0.35 | We think this was probably written by a person. |
+| unsure | 0.35 – 0.82 | We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you. |
+| high-confidence AI | 0.82 – 1.00 | Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you. |
+
+Both edges are inclusive: exactly 0.35 is "human" and exactly 0.82 is "ai", so
+every score gets a label. The text lives in `scoring.py` (`LABEL_HUMAN`,
+`LABEL_UNSURE`, `LABEL_AI`).
 
 **Why I worded the "unsure" one this way:**
 <!-- It's the hardest of the three. It has to admit uncertainty without
      sounding like an accusation, because the person reading it may well have
      written every word themselves. -->
+The unsure band is wide (0.35 to 0.82) on purpose, and the people most likely to
+land in it are honest writers who write plainly, like the plain-writing input
+in my calibration table (0.812). So the label says straight away that it is not
+an accusation, explains that ordinary writing ends up here, and offers the
+appeal without making the reader feel they have to defend themselves.
+
+**What a reader heard, and what I changed.** I gave all three labels, with no
+explanation of the system, to a fresh Claude session using the prompt from the
+brief ("answer as the writer, not as an engineer"). What it heard:
+- "Unsure" mostly worked, but "especially clear, simple writing" read as "your
+  writing is generic." **Removed that phrase.**
+- "AI" still read as an accusation with a disclaimer stuck on, and "careful,
+  plain writing sometimes looks like this" read as "writing plainly is
+  suspicious," which could push writers to write worse on purpose. **Reworded
+  it to say the check isn't proof and makes mistakes, without blaming a kind
+  of writing.**
+- For both, its biggest worry was whether asking for a review counts against
+  you. **Both now say that asking never counts against you.** That's a promise
+  the site has to keep: an appeal only changes the status to `under_review`.
+- "Human" was fine; the "probably" was noticed but didn't worry the reader.
+
+Still open: the reader also wanted to know who else sees the label and how
+long a review takes. My system doesn't decide either, so the labels don't say.
 
 
 
@@ -213,95 +242,90 @@ slightly different run could flip either one.
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
-```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Grandma'\''s kitchen smelled like burnt cardamom and wet dog, which sounds awful but honestly I'\''d pay money to smell it again. She swore at the radiator in Tagalog every winter. Nobody fixed it. Nobody dared.", "creator_id": "angelo"}'
-```
+The plain-writing input from my calibration table. It lands in "unsure", which
+is the case the appeal exists for.
 
-<!-- Milestone 3: one signal only. guess, confidence, label and style_score
-     are placeholders until Milestones 4 and 5. -->
+```bash
+$ curl -X POST http://127.0.0.1:5000/submit   -H "Content-Type: application/json"   -d '{"text": "I went to the store on Saturday with my mom. We needed milk, bread, and eggs. The store was very busy because of the holiday. We waited in line for a long time. My little brother wanted candy but my mom said no. He was sad. When we got home I helped make lunch. We had sandwiches and soup. After lunch I did my homework and then I played games with my friends.", "creator_id": "angelo"}'
+```
 
 ```json
 {
-  "confidence": null,
-  "content_id": "07b2a500-81c5-4b25-a2d7-d59cf4da4c58",
-  "guess": "pending",
-  "label": "PLACEHOLDER — label comes in Milestone 5.",
-  "model_score": 0.1793,
-  "style_score": null
+  "combined_score": 0.8124,
+  "confidence": 0.0323,
+  "content_id": "246608ff-cd23-4c5a-9e02-dc658c434729",
+  "guess": "unsure",
+  "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+  "model_score": 0.8256,
+  "style_score": 0.7992
 }
 ```
+
+`confidence` is how deep the score sits inside its own label's band, from 0
+(right on a cutoff) to 1 (`scoring.py::confidence`). 0.0323 says this one only
+just made "unsure": it is 0.008 below the "ai" cutoff.
+
+The other two labels, from the same run:
+
+| Input | combined | guess |
+|---|---|---|
+| Clearly AI | 0.8482 | ai |
+| Clearly human (Twain) | 0.2618 | human |
 
 **An appeal**
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
-  -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+$ curl -X POST http://127.0.0.1:5000/appeal   -H "Content-Type: application/json"   -d '{"content_id": "246608ff-cd23-4c5a-9e02-dc658c434729", "reasoning": "I wrote this myself for a class. I kept the sentences simple on purpose."}'
 ```
 
 ```json
-
+{
+  "content_id": "246608ff-cd23-4c5a-9e02-dc658c434729",
+  "message": "Thanks — your appeal was received. A person will review this decision.",
+  "status": "under_review"
+}
 ```
+
+An appeal with a made-up `content_id` returns `404 {"error": "not_found"}`,
+and one with no `reasoning` returns `400 {"error": "missing_field"}`. Neither
+writes anything to the log.
 
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log"
+$ curl "http://127.0.0.1:5000/log?limit=2"
 ```
-
-<!-- Milestone 3: the submission above, then four bad inputs (blank text,
-     missing creator_id, a JSON list, 30,000 characters) — each refused with
-     a 400 and logged as a rejection. No appeal exists yet. -->
 
 ```json
 {
-  "count": 5,
+  "count": 2,
   "entries": [
     {
-      "combined_score": null,
-      "content_id": "07b2a500-81c5-4b25-a2d7-d59cf4da4c58",
+      "combined_score": 0.8124,
+      "content_id": "246608ff-cd23-4c5a-9e02-dc658c434729",
       "creator_id": "angelo",
-      "guess": "pending",
-      "label": "PLACEHOLDER — label comes in Milestone 5.",
-      "model_score": 0.1793,
+      "guess": "unsure",
+      "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+      "model_score": 0.8256,
       "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-11-01T23:48:07+00:00"
+      "style_score": 0.7992,
+      "timestamp": "2026-11-02T00:02:35+00:00"
     },
     {
+      "content_id": "246608ff-cd23-4c5a-9e02-dc658c434729",
       "creator_id": "angelo",
-      "event": "rejected",
-      "reason": "missing_text",
-      "status": "rejected",
-      "timestamp": "2026-11-01T23:48:07+00:00"
-    },
-    {
-      "creator_id": "unknown",
-      "event": "rejected",
-      "reason": "missing_creator_id",
-      "status": "rejected",
-      "timestamp": "2026-11-01T23:48:07+00:00"
-    },
-    {
-      "creator_id": "unknown",
-      "event": "rejected",
-      "reason": "invalid_json",
-      "status": "rejected",
-      "timestamp": "2026-11-01T23:48:07+00:00"
-    },
-    {
-      "creator_id": "angelo",
-      "event": "rejected",
-      "reason": "text_too_long",
-      "status": "rejected",
-      "text_length": 30000,
-      "timestamp": "2026-11-01T23:48:07+00:00"
+      "event": "appeal",
+      "reasoning": "I wrote this myself for a class. I kept the sentences simple on purpose.",
+      "status": "under_review",
+      "timestamp": "2026-11-02T00:02:35+00:00"
     }
   ]
 }
 ```
+
+The original decision stays as it was. The appeal sits right after it with
+status `under_review`, so the log shows what was decided, that it was
+challenged, and in what order.
 
 ---
 

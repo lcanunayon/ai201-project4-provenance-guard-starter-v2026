@@ -230,13 +230,9 @@ def submit():
 
     style_score = stylometry.style_signal(text)
     combined_score = scoring.combine_signals(model_score, style_score)
-    # How far from the undecided middle, 0-1 (contract in milestone1.md).
-    confidence = round(abs(combined_score - 0.5) * 2, 4)
+    confidence = scoring.confidence(combined_score)
 
-    # Milestone 4: guess and label are placeholders until score_to_label is
-    # written in Milestone 5.
-    guess = "pending"
-    label = "PLACEHOLDER — label comes in Milestone 5."
+    guess, label = scoring.score_to_label(combined_score)
 
     audit.log_decision(
         content_id=content_id,
@@ -285,14 +281,35 @@ def appeal():
     to the person on the other end. It's the only thing standing between a
     wrong accusation and nothing at all.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        payload = {}
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+    if not isinstance(content_id, str) or not content_id.strip():
+        return jsonify({"error": "missing_field", "message": "content_id is required."}), 400
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        return jsonify({"error": "missing_field", "message": "reasoning is required and can't be empty."}), 400
+
+    content_id = content_id.strip()
+    decisions = [e for e in audit.entries_for(content_id) if e.get("status") == "decided"]
+    if not decisions:
+        return jsonify({"error": "not_found", "message": "No submission with that ID."}), 404
+
+    # creator_id comes from the original decision, not the request, so nobody
+    # can appeal under someone else's name.
+    audit.log_appeal(
+        content_id=content_id,
+        creator_id=decisions[0]["creator_id"],
+        reasoning=reasoning.strip(),
+    )
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "status": "under_review",
+        "message": "Thanks — your appeal was received. A person will review this decision.",
+    })
 
 
 # ── Already works ─────────────────────────────────────────────────────────────

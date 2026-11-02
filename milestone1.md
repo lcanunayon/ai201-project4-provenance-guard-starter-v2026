@@ -66,7 +66,7 @@ she doesn't make mistakes. She submits it to `POST /submit`.
 |---|---|---|
 | `content_id` | string | Unique ID for this submission (a UUID). Needed to appeal. |
 | `guess` | string | One of `"ai"`, `"human"`, `"unsure"`. |
-| `confidence` | number 0–1 | How far the combined score is from the middle: `abs(combined − 0.5) × 2`. 0 = no idea, 1 = as sure as the system gets. |
+| `confidence` | number 0–1 | How far the combined score is from the middle: `abs(combined − 0.5) × 2`. 0 = no idea, 1 = as sure as the system gets. *Revised in Milestone 5: now how deep the score sits inside its own label's band (0 = on a cutoff), because the bands stopped being symmetric around 0.5 once the "ai" cutoff moved to 0.82. See `scoring.py::confidence`.* |
 | `label` | string | The plain-English sentence the writer reads. |
 | `model_score` | number 0–1 | Signal one. Higher = more predictable = more likely AI. |
 | `style_score` | number 0–1 | Signal two. Higher = more even shape = more likely AI. |

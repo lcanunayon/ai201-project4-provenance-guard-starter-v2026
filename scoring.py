@@ -89,12 +89,54 @@ def score_to_label(score: float) -> tuple[str, str]:
     think if they got it on their own work. That question is the whole
     milestone.
     """
-    # TODO: replace this — thresholds are in config.py
+    # Thresholds are in config.py. Both edges are inclusive: exactly
+    # AI_THRESHOLD is "ai", exactly HUMAN_THRESHOLD is "human", so there's no gap.
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
+        return "ai", LABEL_AI
     if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return "human", LABEL_HUMAN
+    return "unsure", LABEL_UNSURE
+
+
+# The exact text a writer sees. Kept here so the README can quote them verbatim.
+LABEL_HUMAN = "We think this was probably written by a person."
+
+LABEL_UNSURE = (
+    "We can't tell whether this was written by a person or by AI. "
+    "This isn't a finding that you used AI — a lot of people's own writing "
+    "lands here. If you'd like, you can ask a person to review it, and asking "
+    "never counts against you."
+)
+
+LABEL_AI = (
+    "Our check thinks this reads like text written by AI. That isn't proof, "
+    "and the check makes mistakes — it sometimes flags writing people did "
+    "entirely themselves. If you wrote this, you can ask a person to review "
+    "it, and asking never counts against you."
+)
+
+
+def confidence(score: float) -> float:
+    """
+    How firmly a score sits inside the band it was labelled with, 0–1.
+
+    0 means right on a cutoff, where a tiny change would flip the label.
+    1 means as deep inside the band as it gets: 0.0 for "human", 1.0 for "ai",
+    or the exact middle of the unsure band for "unsure".
+
+    Measured against the label's own band, not against 0.5, because the bands
+    aren't symmetric (0.35 and 0.82). Against 0.5, a score of 0.81 read as
+    0.62 confident while being labelled "unsure" — the number contradicted
+    the label it sat next to.
+    """
+    low, high = config.HUMAN_THRESHOLD, config.AI_THRESHOLD
+    if score >= high:
+        depth = (score - high) / (1.0 - high)
+    elif score <= low:
+        depth = (low - score) / low
+    else:
+        depth = min(score - low, high - score) / ((high - low) / 2)
+    return round(min(max(depth, 0.0), 1.0), 4)
 
 
 def label_ranges() -> list[tuple[str, str]]:
