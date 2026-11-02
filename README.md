@@ -334,14 +334,23 @@ challenged, and in what order.
 **Moment 1**
 
 - *What I asked for:*
+Help with criterion suggestions.
 - *What came back:*
+Suggestions of the numbers I should test and how I should
+shape my crtierion.
 - *What I changed:*
+I changed the original criterions slightly from my originals with the feedback of AI.
 
 **Moment 2**
 
 - *What I asked for:*
+Help with the tracing from a text arriving to the label.
 - *What came back:*
+A suggestions on how text flows in about 7 steps from
+input to output, and why it should flow in that way.
 - *What I changed:*
+I changed some of the details on the flow of the text
+data, while keeping some of AIs suggestions as well in the text flow.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
