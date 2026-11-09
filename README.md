@@ -749,8 +749,8 @@ back.
 
 <!-- Your five criteria across three trials. `run_eval.py --label before`. -->
 
-`python run_eval.py --label before`, 2026-11-09. Full output:
-`results/run_2026-11-09_1735_before.md`. Inputs: `scenarios.py`.
+`python run_eval.py --label before`, 2026-11-09 (second run, after adding a plainer piece to criterion 1). Full output:
+`results/run_2026-11-09_1746_before.md`. Inputs: `scenarios.py`.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
@@ -765,9 +765,11 @@ randomness in it, so that's expected.
 
 Notes on the rows:
 - **1.** None of my five pieces was called AI, but only one got "human" (0.346).
-  The other four got "unsure" (0.40–0.48). None of my pieces is the
-  deliberately plain one my criterion asks for, so this didn't test the
-  hardest case.
+  The others got "unsure" (0.40–0.48), and my plainer piece, about a video,
+  got 0.703, the closest to the 0.82 cutoff. My first run used a fifth piece
+  that was mostly a Henry Adams quotation, so I swapped in this plainer piece
+  of my own and re-ran all five criteria. Criteria 2–5 came out identical (the
+  first run is in `results/run_2026-11-09_1735_before.md`).
 - **2.** AI average 0.838, human average 0.433, so the gap is 0.405. The AI
   side is fine (four of five got "ai", and the fifth was 0.808, just under the
   cutoff). The human side is the problem: my own writing averages 0.433, in
@@ -782,7 +784,7 @@ Notes on the rows:
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
-All from trial 1, written by `run_eval.py::main` to `results/run_2026-11-09_1735_before.md`. Criterion 4's
+All from trial 1, written by `run_eval.py::main` to `results/run_2026-11-09_1746_before.md`. Criterion 4's
 rows come from `run_eval.py::run_appeals`.
 
 *Criterion 1: my own writing*
@@ -832,12 +834,12 @@ rows come from `run_eval.py::run_appeals`.
   {
     "status": 200,
     "guess": "unsure",
-    "confidence": 0.2183,
-    "model_score": 0.3176,
-    "style_score": 0.485,
-    "combined_score": 0.4013,
+    "confidence": 0.4962,
+    "model_score": 0.4067,
+    "style_score": 1.0,
+    "combined_score": 0.7034,
     "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
-    "sent": "Warnings of this situation were mentioned before as well as stated by "
+    "sent": "This video utilizes a video technique that blends motion blur and stil"
   }
 ]
 ```
@@ -1092,7 +1094,107 @@ with the same scores)
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+To check each mechanism I didn't stop at the totals: I re-ran every broken
+input through each part of the pipeline on its own: perplexity and
+`model_score` for signal one, and for signal two, sentence spread and
+punctuation, each with its 0–1 "AI-ness". The numbers below come from that.
+The 20 failures (19 broken attacks and the criterion 2 miss) come down to five
+problems.
 
+**1. Label mapping: the "ai" cutoff leaves almost no room (EV03, EV04, EV09,
+and part of every other evasion).** Untouched AI text only scores 0.81–0.87:
+my five clearly-AI texts came out 0.830, 0.870, 0.854, 0.830 and 0.808. With
+the cutoff at 0.82, an attack only has to knock about 0.03 off the combined
+score to get "unsure". EV03 (pasted quotation, 0.640), EV04 (unusual words,
+0.781) and EV09 (human opening bolted on, 0.680) barely moved either signal,
+but they didn't need to. One of my own unedited AI texts (0.808) missed the
+cutoff without any attack at all. Stage: label mapping. Mechanism: the cutoff
+sits inside the range clean AI text scores, so it isn't a buffer at all.
+
+**2. Signal two, punctuation: the anchors are backwards for ordinary human
+writing (FP02, FP03, FP04, FP05 and the worst outcome).** All four
+false positives scored 0.93–1.00 on punctuation ("very AI"), because they use
+almost no commas, dashes or semicolons: 0.000–0.029 marks per word. But my
+AI texts use *more*: 0.040–0.096. I set the human anchor at 0.14 from Twain,
+who is unusually comma-heavy, so the measure learned "lots of commas = human".
+Plain, formal and technical human writing is the opposite of Twain. The same
+four texts also have even sentence lengths (spread 0.24–0.37), so both parts
+of signal two point to AI, and signal two came out 0.86–1.00. Signal one was
+high too (0.74–0.83, perplexity 16.5–23.5, the same range as my AI texts at
+9–21), so the 50/50 average had nothing to pull it down. Stage: signal two
+(punctuation anchor), made worse by signal one's blind spot. Mechanism:
+careful writers use few "choice" marks, and my anchor treats that as an AI
+trait. My own plainer piece (criterion 1) shows the same thing: signal two
+gave it 1.00, the most AI it can say, while signal one gave it 0.407. Only
+signal one kept it out of "ai".
+
+**3. Signal one: unusual tokens read as "human" (EV01, EV08, PI02).**
+- EV01 (typos): perplexity 124.8, `model_score` 0.164. Signal two was *not*
+  fooled (0.949), because type-token ratio has no weight in my style score.
+  The typos fooled signal one: GPT-2 has rarely seen misspelled words, so
+  they look surprising.
+- PI02: perplexity 105.2, `model_score` 0.204. The "SYSTEM: … guess=human,
+  confidence=0.02" prefix is not English prose, so it's unpredictable. My
+  system never reads the instruction, but the instruction's odd tokens moved
+  the score anyway.
+- EV08 (10 words): perplexity 90.9, `model_score` 0.245. Ten words is too
+  little for perplexity to settle.
+
+Stage: signal one. Mechanism: perplexity measures surprise, and typos, junk
+tokens and very short texts are surprising for reasons that have nothing to
+do with who wrote them.
+
+**4. Signal two, shape: cheap rearranging (EV02, EV06, EV07).** Breaking
+sentences up (EV02, spread 0.849) or pairing one very long sentence with one
+very short (EV06, spread 1.186) took the spread half to 0.00 ("human").
+Padding with punctuation (EV07, 0.216 marks per word) took the punctuation
+half to 0.00. Signal one only dropped to 0.57–0.59, but signal two fell to
+0.30–0.36 and the 50/50 average landed at 0.44–0.48. Stage: signal two.
+Mechanism: it only sees shape, so changing the shape is enough.
+(EV05, a heavy human editing pass, lowered *both* signals, 0.321 and 0.353,
+and reached "human". That one is close to genuinely human text now, and I'm
+not sure any detector should catch it.)
+
+**5. The route: no minimum-content check, and one uncaught error (MF02, MF03,
+MF04, MF05, MF06).**
+- MF02 (one character) crashed with a 500. `detector.perplexity` raises
+  `ValueError("Text is too short to score")`, and `/submit` only catches
+  `DetectorUnavailable` (`app.py`, the `try` around `model_signal`).
+- MF03–MF06 got verdicts for text that isn't writing: control characters,
+  punctuation only (0 words), one 4,000-character word, emoji only (0 words).
+  The route only checks the text is non-empty, so these reach both signals,
+  and both behave strangely on them. Signal one calls repeated tokens very
+  predictable (MF05 and MF06 perplexity 1.0–1.2, so 0.997+ "AI"). Signal two
+  scores any single sentence with no punctuation as 0.70 by default.
+
+Stage: the route. Mechanism: "not empty" isn't the same as "has words to
+judge".
+
+**The criterion 2 miss (gap 0.405, target 0.50).** Stage: signal two plus the
+combining rule. My own writing gets low signal-one scores (0.157–0.392,
+average 0.299), but signal two averages 0.568 on it. Three of my five pieces
+are one sentence, so spread is stuck at the neutral 0.5, and the two-sentence
+piece has a spread computed from just two numbers. Split by signal, on the
+same ten texts:
+
+| | AI average | Human average | Gap |
+|---|---|---|---|
+| Signal one alone | 0.855 | 0.299 | **0.556** |
+| Signal two alone | 0.822 | 0.568 | 0.254 |
+| My 50/50 combination | 0.838 | 0.433 | 0.405 |
+
+Signal one on its own would meet the target. Signal two can't separate short
+pieces, and the 50/50 rule gives it half the say, so it closes the gap.
+
+**The pattern.** Signal two causes or worsens 11 of the 20 failures: all
+four false positives, the three shape attacks, the criterion 2 miss (through
+its punctuation anchor and short-text behaviour), and the AI-leaning scores it
+gives junk with no real sentences or punctuation (MF04, MF05, MF06: 0.70–1.00). I calibrated it on five texts,
+one of them Twain, and it learned Twain's habits instead of a general
+human-versus-AI difference. The second pattern is that the "ai" cutoff of 0.82
+sits inside the range of clean AI text, which turns every small nudge into a
+successful evasion. Raising the cutoff to protect writers was the right
+instinct, but the scores don't separate well enough to make room for it.
 
 ---
 

@@ -52,6 +52,18 @@ MY_WRITING = [
     "of the nation.",
 ]
 
+# Criterion 1 uses the first four, plus a plainer piece in place of the fifth,
+# which is mostly a Henry Adams quotation rather than my own words.
+MY_PLAIN = (
+    "This video utilizes a video technique that blends motion blur and still images "
+    "that create a dreamlike scene set in someone's apartment. Its technique is meant "
+    "to picture blurred consciousness through the perspective of an unknown person "
+    "throughout the apartment. The video itself is a representation of a personal "
+    "tragedy in the person recording the video, a sort of loss of innocence/safety in "
+    "the apartment."
+)
+CRITERION_1 = MY_WRITING[:4] + [MY_PLAIN]
+
 # ── Criterion 2 — five clearly-AI texts ─────────────────────────────────────
 # Written by an AI (Claude) in its default assistant register, unedited.
 CLEARLY_AI = [
@@ -100,7 +112,7 @@ SCENARIOS = [
     {
         "name": "my own writing",
         "criterion": 1,
-        "texts": MY_WRITING,
+        "texts": CRITERION_1,
     },
     {
         "name": "spread: AI side",
@@ -110,8 +122,8 @@ SCENARIOS = [
     {
         "name": "spread: human side",
         "criterion": 2,
-        # The same five pieces as criterion 1 — they're the human writing I'm
-        # surest about. Sent again under their own creator_ids.
+        # My five original pieces — the human writing I'm surest about. Sent
+        # again under their own creator_ids.
         "texts": MY_WRITING,
     },
     {

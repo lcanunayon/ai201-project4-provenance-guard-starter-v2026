@@ -54,6 +54,11 @@ want to have the model do that as little as possible. A
 wrong accusations hurts a real person, while a missed AI text would cost the site a little.
 
 
+**Verdict (unit 8): MET.** 0 of 5 got "ai" in all three trials. My first run
+didn't include a plainer piece, so I swapped one in for the fifth piece (which
+was mostly a quotation) and re-ran. It got "unsure" at 0.703 every time. So the
+criterion holds, but not by much: that piece is 0.117 under the "ai" cutoff,
+and signal two gave it the most AI score it can (1.00).
 ---
 
 ## 2.
@@ -65,6 +70,9 @@ The average combined_score of 5 clearly-AI texts is at least 0.5 higher than the
 **Why this target:**
 Human is ≤ 0.35 and AI is ≥ 0.65, so the bands are 0.3 apart. A spread of 0.5 is big enough so each score should fall into their own baskets in each label.
 
+
+**Verdict (unit 8): MISSED.** The gap was 0.405 in all three trials,
+under the 0.50 target every time. See README "Diagnoses".
 
 ---
 
@@ -78,6 +86,9 @@ Of my test texts, at least one gets ai, one human, and one unsure, in all 3 tria
 Human is ≤ 0.35 and AI is ≥ 0.65 and unsure is inbetween, so the three labels should be reachable in different trials from each other.
 
 
+**Verdict (unit 8): MET.** "ai", "human" and "unsure" each came back
+in all three trials (0.830, 0.262, 0.671).
+
 ---
 
 ## 4.
@@ -89,6 +100,10 @@ All 5 appeals with a real content_id are written to the log and change status to
 **Why this target:**
 The appeal is the only thing between a wrong accusation and nothing at all, so it can't fail even once.
 
+
+**Verdict (unit 8): MET.** All five appeals were logged with status
+`under_review`, and the made-up id got a 404 with nothing written, in all three
+trials (6 of 6 each time, checked by `run_eval.py::run_appeals`).
 
 ---
 
@@ -102,6 +117,12 @@ If text is missing, empty, or enormous, it must go through
 **Why this target:**
 Empty text would get a meaningless score, enormous text slows the detector for everyone, and a crash on bad input is one of the most common real failures.
 
+
+**Verdict (unit 8): MET.** All five bad bodies (missing, `""`, spaces,
+20,005 characters, `null`) got a 400 in all three trials. But the attack set
+found a gap the criterion doesn't cover: a single character crashed the
+service with a 500 (MF02), and emoji-only text got a verdict (MF06). The
+criterion passed, but it was too narrow.
 
 ---
 
