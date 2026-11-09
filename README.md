@@ -1201,21 +1201,156 @@ instinct, but the scores don't separate well enough to make room for it.
 ## The Improvement
 
 **What I changed:**
+Input validation in `app.py::submit`. Before either signal sees the text, the
+route now counts its words, meaning runs of letters in any script, and refuses
+anything with fewer than 5 (`config.MIN_WORDS`) with a 400 `too_few_words`.
+Emoji, punctuation, control characters and one endless "aaaa…" don't count as
+words. As a backstop, the detector's own "too short to score" error is caught
+and becomes a 400 `too_short` instead of a 500. Both refusals are logged with
+`audit.log_rejection`. Nothing else changed: same signals, weights and
+thresholds.
 
 **Which diagnosis pointed at it:**
+Diagnosis 5, the route. "Not empty" isn't the same as "has words to judge".
+I picked it over the bigger problem, the false positives in diagnosis 2,
+because I tested reweighting first and it can't fix those. On the scores I
+already had:
+
+| Weights (model / style) | Human texts called "ai" | Evasions that got past | Criterion 2 gap | "human" label reachable? |
+|---|---|---|---|---|
+| 0.5 / 0.5 (current) | 4 (FP02–05) | 9 of 10 | 0.405 | yes |
+| 0.7 / 0.3 | 4 (FP03–06) | 9 of 10 | 0.465 | yes |
+| 0.8 / 0.2 | 4 (FP03–06) | 9 of 10 | 0.496 | **no** |
+| 1.0 / 0.0 | 3 (FP04, 06, 07) | 9 of 10 | 0.556 | **no** |
+
+Moving weight to signal one only changes *which* human texts get accused,
+because they score high on both signals, and from 0.8 up nothing can reach
+"human". So I made the one change I could measure cleanly, and left the false
+positives for "What's Still Broken".
 
 ### Attack Run — After
 
 <!-- Same format. `run_attacks.py --label after` -->
 
+`python run_attacks.py --set attack_set --label after`, 2026-11-09. Full
+output: `results/attack_run_2026-11-09_1752_after.md` (verdicts filled in). Log: `results/audit_extract_after.json`.
+Same marking rules as the before run.
 
+**Before and after, side by side:**
+
+| Family | Before: held / broke | After: held / broke |
+|---|---|---|
+| evasion | 1 / 9 | 1 / 9 |
+| false_positive | 4 / 4 | 4 / 4 |
+| prompt_injection | 5 / 1 | 5 / 1 |
+| malformed | 15 / 5 | **20 / 0** |
+| flood_same_creator | 12 / 0 | 12 / 0 |
+| **Total** | **37 / 19** | **42 / 14** |
+
+**The five attacks that changed** (nothing else did, row for row):
+
+| ID | Input | Before | After |
+|---|---|---|---|
+| MF02 | a single character | 500 crash | 400 `too_few_words` |
+| MF03 | control characters | 200 "human" | 400 `too_few_words` |
+| MF04 | only punctuation | 200 "unsure" | 400 `too_few_words` |
+| MF05 | one 4,000-character word | 200 "ai" | 400 `too_few_words` |
+| MF06 | emoji only | 200 "ai" | 400 `too_few_words` |
+
+Things I checked didn't break: FP08 (a real 8-word post) and MF07
+(right-to-left script) still get through and get "unsure", same as before. The
+word count counts letters in any alphabet, so non-Latin writing isn't refused.
+
+**Full after table:**
+
+| ID | Going for | Status | Guess | model | style | combined | Verdict |
+|---|---|---|---|---|---|---|---|
+| EV01 | signal two: typos raise word variety | 200 | unsure | 0.1635 | 0.949 | 0.5563 | **BROKE** |
+| EV02 | signal two: broken-up sentences raise length spread | 200 | unsure | 0.5943 | 0.3567 | 0.4755 | **BROKE** |
+| EV03 | signal two: a pasted quotation changes the shape | 200 | unsure | 0.6662 | 0.6146 | 0.6404 | **BROKE** |
+| EV04 | signal one: unusual words raise perplexity | 200 | unsure | 0.6114 | 0.9503 | 0.7809 | **BROKE** |
+| EV05 | both signals: heavy human editing pass | 200 | human | 0.3212 | 0.353 | 0.3371 | **BROKE** |
+| EV06 | signal two: one very long sentence and one very short | 200 | unsure | 0.5727 | 0.358 | 0.4653 | **BROKE** |
+| EV07 | signal two: padding with punctuation | 200 | unsure | 0.5862 | 0.3 | 0.4431 | **BROKE** |
+| EV08 | signal one: text below the token window | 200 | unsure | 0.2452 | 0.9606 | 0.6029 | **BROKE** |
+| EV09 | both: AI text with a human opening paragraph bolted on | 200 | unsure | 0.7042 | 0.6557 | 0.68 | **BROKE** |
+| EV10 | signal two: repeated stanza structure | 200 | ai | 0.9792 | 0.8273 | 0.9032 | **HELD** |
+| FP01 | plain, clear human writing with no flourishes | 200 | unsure | 0.6175 | 0.751 | 0.6843 | **HELD** |
+| FP02 | human writing in a formal register | 200 | ai | 0.7387 | 1.0 | 0.8694 | **BROKE** |
+| FP03 | a non-native English speaker writing carefully | 200 | ai | 0.8051 | 0.9062 | 0.8557 | **BROKE** |
+| FP04 | a student essay written to a rubric | 200 | ai | 0.8329 | 0.86 | 0.8464 | **BROKE** |
+| FP05 | technical documentation written by a person | 200 | ai | 0.8005 | 0.9391 | 0.8698 | **BROKE** |
+| FP06 | a person imitating a formal template | 200 | unsure | 0.8814 | 0.677 | 0.7792 | **HELD** |
+| FP07 | human writing that repeats a phrase deliberately | 200 | unsure | 0.8816 | 0.3766 | 0.6291 | **HELD** |
+| FP08 | very short genuine human submission | 200 | unsure | 0.3223 | 0.7804 | 0.5514 | **HELD** |
+| PI01 | instruction to ignore the check | 200 | unsure | 0.4625 | 0.5048 | 0.4837 | **HELD** |
+| PI02 | instruction disguised as a system message | 200 | human | 0.2044 | 0.4365 | 0.3205 | **BROKE** |
+| PI03 | instruction wrapped in the writer's voice | 200 | unsure | 0.5943 | 0.7733 | 0.6838 | **HELD** |
+| PI04 | attempt to make the label text hostile | 200 | unsure | 0.4998 | 0.6293 | 0.5645 | **HELD** |
+| PI05 | attempt to inject into the audit log | 200 | unsure | 0.6401 | 0.3343 | 0.4872 | **HELD** |
+| PI06 | instruction plus real human text | 200 | unsure | 0.5583 | 0.7655 | 0.6619 | **HELD** |
+| MF01 | text is only whitespace | 400 | — | — | — | — | **HELD** |
+| MF02 | text is a single character | 400 | — | — | — | — | **HELD** |
+| MF03 | text is control characters | 400 | — | — | — | — | **HELD** |
+| MF04 | text is only punctuation | 400 | — | — | — | — | **HELD** |
+| MF05 | text is a very long single word | 400 | — | — | — | — | **HELD** |
+| MF06 | text is emoji only | 400 | — | — | — | — | **HELD** |
+| MF07 | text is right-to-left script | 200 | unsure | 0.9064 | 0.7 | 0.8032 | **HELD** |
+| MF08 | text is 60,000 characters | 400 | — | — | — | — | **HELD** |
+| RQ01 | no text field at all | 400 | — | — | — | — | **HELD** |
+| RQ02 | no creator_id | 400 | — | — | — | — | **HELD** |
+| RQ03 | text is a number | 400 | — | — | — | — | **HELD** |
+| RQ04 | text is a list | 400 | — | — | — | — | **HELD** |
+| RQ05 | text is null | 400 | — | — | — | — | **HELD** |
+| RQ06 | creator_id is an object | 400 | — | — | — | — | **HELD** |
+| RQ07 | body is a JSON array, not an object | 400 | — | — | — | — | **HELD** |
+| RQ08 | body is unparseable JSON | 400 | — | — | — | — | **HELD** |
+| RQ09 | body is empty | 400 | — | — | — | — | **HELD** |
+| RQ10 | body is form-encoded, not JSON | 429 | — | — | — | — | **HELD** |
+| RQ11 | body is JSON claiming to be plain text | 429 | — | — | — | — | **HELD** |
+| RQ12 | deeply nested JSON | 400 | — | — | — | — | **HELD** |
+| FL01_01 | 20 rapid submissions from one creator | 200 | unsure | 0.0287 | 0.7 | 0.3643 | **HELD** |
+| FL01_02 | 20 rapid submissions from one creator | 200 | unsure | 0.0287 | 0.7 | 0.3643 | **HELD** |
+| FL01_03 | 20 rapid submissions from one creator | 200 | unsure | 0.0287 | 0.7 | 0.3643 | **HELD** |
+| FL01_04 | 20 rapid submissions from one creator | 200 | unsure | 0.0287 | 0.7 | 0.3643 | **HELD** |
+| FL01_05 | 20 rapid submissions from one creator | 200 | unsure | 0.0287 | 0.7 | 0.3643 | **HELD** |
+| FL01_06 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_07 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_08 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_09 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_10 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_11 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+| FL01_12 | 20 rapid submissions from one creator | 429 | — | — | — | — | **HELD** |
+
+**My five criteria, before and after** (`python run_eval.py --label after`,
+`results/run_2026-11-09_1752_after.md`):
+
+| Criterion | Target | Before (runs 1 / 2 / 3) | After (runs 1 / 2 / 3) | Verdict before → after |
+|---|---|---|---|---|
+| 1. My own writing labelled "ai" | 0 of 5 | 0/5, 0/5, 0/5 | 0/5, 0/5, 0/5 | MET → MET |
+| 2. AI vs human average gap | ≥ 0.50 | 0.405, 0.405, 0.405 | 0.405, 0.405, 0.405 | MISSED → MISSED |
+| 3. All three labels reached | 3 of 3 | 3/3, 3/3, 3/3 | 3/3, 3/3, 3/3 | MET → MET |
+| 4. Appeal path | 6 of 6 | 6/6, 6/6, 6/6 | 6/6, 6/6, 6/6 | MET → MET |
+| 5. Bad input getting through | 0 of 5 | 0/5, 0/5, 0/5 | 0/5, 0/5, 0/5 | MET → MET |
+
+Every result in the after run matches the before run exactly, apart from
+content ids. None of my criteria texts is under 5 words, so none of them
+touched the new check.
 
 **Did it help, and how do I know:**
 
 <!-- Widening the unsure band usually fixes one problem and creates another.
      Reporting that trade honestly is worth full credit. -->
 
-
+Yes, but only for what it targeted. It fixed all five malformed attacks it was
+aimed at (19 broken → 14) and changed nothing else: the before and after runs
+are identical for the other 51 attacks and for all five criteria, so I know the
+five changes came from this check and not from noise. It did nothing for the
+real problems: four real writers are still called AI, nine of ten evasions
+still get past, and criterion 2 is still missed. The cost is small and real:
+someone who sends four words or fewer now gets "send at least 5 words" instead
+of a verdict. I think that's better than guessing, since the attack set showed
+the guesses on text that short were nonsense.
 
 ---
 

@@ -25,6 +25,7 @@ Routes:
 """
 
 import hashlib
+import re
 import uuid
 
 from flask import Flask, jsonify, request
@@ -222,12 +223,27 @@ def submit():
             text_length=len(text),
         )
 
+    # Unit 8, Milestone 5: check there's writing here before the signals see
+    # it. "Not empty" let emoji, control characters and one 4,000-letter word
+    # through, and a single character crashed signal one.
+    word_count = len(re.findall(r"[^\W\d_]+", text))
+    if word_count < config.MIN_WORDS:
+        return _reject(
+            creator_id, "too_few_words",
+            f"There isn't enough writing here to check. Send at least "
+            f"{config.MIN_WORDS} words.",
+            word_count=word_count,
+        )
+
     content_id = str(uuid.uuid4())
 
     try:
         model_score = detector.model_signal(text)
     except detector.DetectorUnavailable as exc:
         return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
+    except ValueError:
+        # The detector's own too-short check (under 3 tokens).
+        return _reject(creator_id, "too_short", "This is too short to check.")
 
     style_score = stylometry.style_signal(text)
     combined_score = scoring.combine_signals(model_score, style_score)

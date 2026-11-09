@@ -50,6 +50,12 @@ DETECTOR_MAX_TOKENS = 400
 # instead of tying up the detector — see the contract in milestone1.md.
 MAX_TEXT_CHARS = 20_000
 
+# Fewest words /submit will judge (unit 8, Milestone 5). A "word" is a run of
+# letters in any script, so emoji, punctuation, control characters and one
+# endless "aaaa..." don't count. Below this there's nothing for either signal
+# to read, and the attack set showed they then return confident nonsense.
+MIN_WORDS = 5
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
