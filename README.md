@@ -749,19 +749,331 @@ back.
 
 <!-- Your five criteria across three trials. `run_eval.py --label before`. -->
 
+`python run_eval.py --label before`, 2026-11-09. Full output:
+`results/run_2026-11-09_1735_before.md`. Inputs: `scenarios.py`.
+
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. My own writing labelled "ai" | 0 of 5 | 0/5 | 0/5 | 0/5 | MET |
+| 2. Gap between AI and human average `combined_score` | ≥ 0.50 | 0.405 | 0.405 | 0.405 | MISSED |
+| 3. All three labels reached | 3 of 3 | 3/3 | 3/3 | 3/3 | MET |
+| 4. Appeals logged as `under_review`, fake id 404s and writes nothing | 6 of 6 | 6/6 | 6/6 | 6/6 | MET |
+| 5. Bad input getting through (anything but a 400) | 0 of 5 | 0/5 | 0/5 | 0/5 | MET |
+
+All three trials were identical, number for number. Neither signal has any
+randomness in it, so that's expected.
+
+Notes on the rows:
+- **1.** None of my five pieces was called AI, but only one got "human" (0.346).
+  The other four got "unsure" (0.40–0.48). None of my pieces is the
+  deliberately plain one my criterion asks for, so this didn't test the
+  hardest case.
+- **2.** AI average 0.838, human average 0.433, so the gap is 0.405. The AI
+  side is fine (four of five got "ai", and the fifth was 0.808, just under the
+  cutoff). The human side is the problem: my own writing averages 0.433, in
+  the middle of "unsure", not down in "human".
+- **4.** Run by `run_eval.py::run_appeals`, which I added because `/submit`
+  alone can't test an appeal. Each trial submits five texts, appeals each one,
+  reads `GET /log` to check the appeal landed with status `under_review`, then
+  appeals an id that was never issued.
+- **5.** Missing text, `""`, only spaces, 20,005 characters, and `null`. All
+  five got 400 every time.
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
-```json
+All from trial 1, written by `run_eval.py::main` to `results/run_2026-11-09_1735_before.md`. Criterion 4's
+rows come from `run_eval.py::run_appeals`.
 
+*Criterion 1: my own writing*
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5613,
+    "model_score": 0.1568,
+    "style_score": 0.807,
+    "combined_score": 0.4819,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "D’Eramo in “The pig and the skyscraper” describe the Pullman town to s"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.4447,
+    "model_score": 0.2463,
+    "style_score": 0.6627,
+    "combined_score": 0.4545,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Another aspect was philanthropy being subordinated in Pullman town to "
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.0111,
+    "model_score": 0.3922,
+    "style_score": 0.3,
+    "combined_score": 0.3461,
+    "label": "We think this was probably written by a person.",
+    "sent": "The Haymarket trial was not really about a bomb – it was about ideas, "
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.5677,
+    "model_score": 0.3804,
+    "style_score": 0.5863,
+    "combined_score": 0.4834,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "The proliferation of American corporations and monopolies after the on"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.2183,
+    "model_score": 0.3176,
+    "style_score": 0.485,
+    "combined_score": 0.4013,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Warnings of this situation were mentioned before as well as stated by "
+  }
+]
+```
+
+*Criterion 2: AI side* (the human side is the same five pieces as criterion 1,
+with the same scores)
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.0533,
+    "model_score": 0.8336,
+    "style_score": 0.8257,
+    "combined_score": 0.8296,
+    "label": "Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Remote work has fundamentally transformed the modern workplace. It off"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.2761,
+    "model_score": 0.8353,
+    "style_score": 0.904,
+    "combined_score": 0.8697,
+    "label": "Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Social media has had a profound impact on the way people communicate a"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.1883,
+    "model_score": 0.8991,
+    "style_score": 0.8087,
+    "combined_score": 0.8539,
+    "label": "Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Regular physical activity offers numerous benefits for both physical a"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.0556,
+    "model_score": 0.9292,
+    "style_score": 0.7308,
+    "combined_score": 0.83,
+    "label": "Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Renewable energy sources, such as solar and wind power, play a crucial"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.0494,
+    "model_score": 0.7757,
+    "style_score": 0.8412,
+    "combined_score": 0.8084,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Reading is one of the most valuable habits a person can develop. It ex"
+  }
+]
+```
+
+*Criterion 3: label coverage*
+
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.0533,
+    "model_score": 0.8336,
+    "style_score": 0.8257,
+    "combined_score": 0.8296,
+    "label": "Our check thinks this reads like text written by AI. That isn't proof, and the check makes mistakes — it sometimes flags writing people did entirely themselves. If you wrote this, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Remote work has fundamentally transformed the modern workplace. It off"
+  },
+  {
+    "status": 200,
+    "guess": "human",
+    "confidence": 0.252,
+    "model_score": 0.4538,
+    "style_score": 0.0699,
+    "combined_score": 0.2618,
+    "label": "We think this was probably written by a person.",
+    "sent": "You don't know about me without you have read a book by the name of Th"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.634,
+    "model_score": 0.7273,
+    "style_score": 0.6148,
+    "combined_score": 0.671,
+    "label": "We can't tell whether this was written by a person or by AI. This isn't a finding that you used AI — a lot of people's own writing lands here. If you'd like, you can ask a person to review it, and asking never counts against you.",
+    "sent": "Four score and seven years ago our fathers brought forth on this conti"
+  }
+]
+```
+
+*Criterion 4: appeal path*
+
+```json
+[
+  {
+    "submit_status": 200,
+    "content_id": "60855c10-4a9d-4693-9199-00b53db23cb2",
+    "appeal_status": 200,
+    "appeal_response": {
+      "content_id": "60855c10-4a9d-4693-9199-00b53db23cb2",
+      "message": "Thanks — your appeal was received. A person will review this decision.",
+      "status": "under_review"
+    },
+    "appeal_in_log": true,
+    "log_status": "under_review",
+    "passed": true
+  },
+  {
+    "submit_status": 200,
+    "content_id": "1bc83a24-258c-4455-acf0-104920cc703b",
+    "appeal_status": 200,
+    "appeal_response": {
+      "content_id": "1bc83a24-258c-4455-acf0-104920cc703b",
+      "message": "Thanks — your appeal was received. A person will review this decision.",
+      "status": "under_review"
+    },
+    "appeal_in_log": true,
+    "log_status": "under_review",
+    "passed": true
+  },
+  {
+    "submit_status": 200,
+    "content_id": "02423c1a-46d1-4a51-98e1-2e27c844a8a2",
+    "appeal_status": 200,
+    "appeal_response": {
+      "content_id": "02423c1a-46d1-4a51-98e1-2e27c844a8a2",
+      "message": "Thanks — your appeal was received. A person will review this decision.",
+      "status": "under_review"
+    },
+    "appeal_in_log": true,
+    "log_status": "under_review",
+    "passed": true
+  },
+  {
+    "submit_status": 200,
+    "content_id": "ab08c440-0799-45f1-a712-bcff33a68e12",
+    "appeal_status": 200,
+    "appeal_response": {
+      "content_id": "ab08c440-0799-45f1-a712-bcff33a68e12",
+      "message": "Thanks — your appeal was received. A person will review this decision.",
+      "status": "under_review"
+    },
+    "appeal_in_log": true,
+    "log_status": "under_review",
+    "passed": true
+  },
+  {
+    "submit_status": 200,
+    "content_id": "e39adda0-ea72-4421-a843-c681e722c93a",
+    "appeal_status": 200,
+    "appeal_response": {
+      "content_id": "e39adda0-ea72-4421-a843-c681e722c93a",
+      "message": "Thanks — your appeal was received. A person will review this decision.",
+      "status": "under_review"
+    },
+    "appeal_in_log": true,
+    "log_status": "under_review",
+    "passed": true
+  },
+  {
+    "content_id": "00000000-0000-0000-0000-000000000000",
+    "appeal_status": 404,
+    "appeal_response": {
+      "error": "not_found",
+      "message": "No submission with that ID."
+    },
+    "log_entries_written": 0,
+    "passed": true
+  }
+]
+```
+
+*Criterion 5: bad input*
+
+```json
+[
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "combined_score": null,
+    "label": null,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "combined_score": null,
+    "label": null,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "combined_score": null,
+    "label": null,
+    "sent": "     "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "combined_score": null,
+    "label": null,
+    "sent": "word word word word word word word word word word word word word word "
+  },
+  {
+    "status": 400,
+    "guess": null,
+    "confidence": null,
+    "model_score": null,
+    "style_score": null,
+    "combined_score": null,
+    "label": null,
+    "sent": "{\"text\": null, \"creator_id\": \"eval_bad_null\"}"
+  }
+]
 ```
 
 **Diagnoses**

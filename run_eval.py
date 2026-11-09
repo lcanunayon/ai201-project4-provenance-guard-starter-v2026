@@ -112,6 +112,12 @@ def main():
 
         trials = []
         for trial in range(1, args.trials + 1):
+            if scenario.get("appeals"):
+                results = run_appeals(requests, args, scenario, trial)
+                trials.append(results)
+                print(f"  trial {trial}: " + ", ".join(
+                    "ok" if r.get("passed") else "FAIL" for r in results))
+                continue
             results = []
             for i, body in enumerate(bodies_for(scenario), 1):
                 preview = describe(body)
@@ -125,6 +131,7 @@ def main():
                         "confidence": payload.get("confidence"),
                         "model_score": payload.get("model_score"),
                         "style_score": payload.get("style_score"),
+                        "combined_score": payload.get("combined_score"),
                         "label": payload.get("label"),
                         "sent": preview,
                     })
@@ -139,6 +146,52 @@ def main():
         rows.append({"scenario": scenario, "trials": trials})
 
     write_report(rows, args)
+
+
+def run_appeals(requests, args, scenario, trial):
+    """
+    The appeal path, end to end. Added for criterion 4 — /submit alone can't
+    test it.
+
+    For each text: submit it, appeal the content_id that came back, then read
+    the log and check the appeal landed with status under_review. Then appeal
+    each made-up id and check it returns 404 and leaves nothing in the log.
+    """
+    def log_for(content_id):
+        entries = requests.get(f"{args.url}/log", timeout=args.timeout).json()["entries"]
+        return [e for e in entries if e.get("content_id") == content_id]
+
+    results = []
+    for i, text in enumerate(scenario["appeals"], 1):
+        creator = f"eval_appeal_{trial}_{i}"
+        submitted = requests.post(f"{args.url}/submit", json={"text": text, "creator_id": creator},
+                            timeout=args.timeout)
+        content_id = submitted.json().get("content_id")
+        app = requests.post(f"{args.url}/appeal", timeout=args.timeout, json={
+            "content_id": content_id, "reasoning": "I wrote this myself."})
+        appeals = [e for e in log_for(content_id) if e.get("event") == "appeal"]
+        results.append({
+            "submit_status": submitted.status_code,
+            "content_id": content_id,
+            "appeal_status": app.status_code,
+            "appeal_response": app.json(),
+            "appeal_in_log": bool(appeals),
+            "log_status": appeals[-1]["status"] if appeals else None,
+            "passed": app.status_code == 200 and bool(appeals)
+                      and appeals[-1]["status"] == "under_review",
+        })
+    for fake in scenario.get("fake_ids", []):
+        app = requests.post(f"{args.url}/appeal", timeout=args.timeout, json={
+            "content_id": fake, "reasoning": "This id doesn't exist."})
+        written = log_for(fake)
+        results.append({
+            "content_id": fake,
+            "appeal_status": app.status_code,
+            "appeal_response": app.json(),
+            "log_entries_written": len(written),
+            "passed": app.status_code == 404 and not written,
+        })
+    return results
 
 
 def write_report(rows, args):
