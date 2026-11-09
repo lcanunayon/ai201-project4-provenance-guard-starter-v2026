@@ -24,6 +24,7 @@ Routes:
     GET  /health      is the service up, and is the model loaded
 """
 
+import hashlib
 import uuid
 
 from flask import Flask, jsonify, request
@@ -151,7 +152,7 @@ def health():
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Take a piece of text, decide about it, log the decision, answer.
@@ -242,6 +243,14 @@ def submit():
         style_score=style_score,
         combined_score=combined_score,
         label=label,
+        # Beyond the nine required fields: enough to re-check this decision
+        # later without the code, even after config.py changes. The text is
+        # fingerprinted, not stored.
+        confidence=confidence,
+        text_length=len(text),
+        text_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        weights={"model": config.WEIGHT_MODEL_SIGNAL, "style": config.WEIGHT_STYLE_SIGNAL},
+        thresholds={"human": config.HUMAN_THRESHOLD, "ai": config.AI_THRESHOLD},
     )
 
     return jsonify({
