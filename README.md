@@ -352,6 +352,34 @@ input to output, and why it should flow in that way.
 I changed some of the details on the flow of the text
 data, while keeping some of AIs suggestions as well in the text flow.
 
+**Moment 3 (unit 8)**
+
+- *What I asked for:*
+To run unit 8's milestones with Claude Code: rate limiting, the attack set, my
+five criteria, the diagnoses, and the one improvement.
+- *What came back:*
+Claude picked the rate limits (5 per minute, 60 per day) and added extra log
+fields. It ran the attack set and my criteria, marked every attack held or
+broke, and wrote the diagnoses after breaking each failure down by signal. It
+also wrote the input-validation fix and most of the unit 8 README text,
+including this section's draft.
+- *What I changed:*
+I supplied my own writing for criterion 1, and asked for a re-run with a
+plainer piece when the first set didn't include one.
+<!-- TODO: add anything else you changed or decided yourself, or
+     delete this comment. -->
+
+**Moment 4 (unit 8)**
+
+- *What I asked for:*
+To pick and make Milestone 5's one improvement.
+- *What came back:*
+Before choosing, Claude ran a simulation on my existing scores showing that reweighting only changes
+which human texts get accused, and that from 0.8/0.2 up the "human" label
+can't be reached. That's why the improvement is input validation instead.
+- *What I changed:*
+<!-- TODO: fill in, or delete this moment. -->
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
@@ -1359,14 +1387,66 @@ the guesses on text that short were nonsense.
 <!-- For each attack still getting through and each criterion still missed:
      what you'd do, and why you stopped. -->
 
+After the improvement, 14 attacks still break and criterion 2 is still missed.
+They come down to the first four diagnoses (the fifth is the one I fixed).
 
+**Four real writers are still called AI: FP02, FP03, FP04, FP05.** (Diagnosis 2)
+- *What I'd do:* rebuild signal two's punctuation measure on a real sample
+  instead of five texts. It should be at least 20 pieces of ordinary human
+  writing (plain, formal, technical, non-native) against the same number of AI
+  texts, with the anchors set from those. On this attack set, plain human
+  writing uses *fewer* commas than AI text, so the measure may need to drop
+  out of the score entirely rather than be re-anchored.
+- *Why I stopped:* the milestone allowed one change, and I tested that
+  reweighting can't fix this (see "The Improvement"). Re-anchoring on the
+  attack set's own four texts would just teach signal two this attack set,
+  the same mistake I made with Twain. Doing it properly needs a writing
+  sample I don't have yet.
+
+**Nine of ten evasions still get past: EV01–EV09.** (Diagnoses 1, 3, 4)
+- *What I'd do:* nothing quick, and I'd say so in the product. Clean AI text
+  scores 0.81–0.87 and my "ai" cutoff is 0.82, so there's no room to catch
+  edited AI text without lowering the cutoff, and lowering it brings back the
+  false positives above. For the specific holes, signal one could fix
+  obvious typos before scoring (EV01). Signal two could stop rewarding
+  extreme sentence-length spread, which no natural writing has (EV02, EV06),
+  or punctuation density above what any of my human texts use (EV07). Each
+  of those is one more patch an attacker can step around.
+- *Why I stopped:* one change per run, and these need the punctuation fix
+  first, or every new rule is stacked on a signal I already know is wrong.
+  EV05 (a heavy human editing pass) I'd leave alone. At that point most of
+  the words are a person's, and I don't think "human" is the wrong answer.
+
+**PI02 still gets the "human" it asked for.** (Diagnosis 3)
+- *What I'd do:* nothing reads the instruction, so there's nothing to "stop
+  obeying". The fix would be in signal one: score only the prose part, or
+  strip lines that look like `KEY: value` or `guess=human` before measuring
+  perplexity.
+- *Why I stopped:* it's one attack, and the fix is a guess about what
+  attackers write. A different prefix would get through the same way.
+
+**Criterion 2 is still missed (gap 0.405, target 0.50).**
+- *What I'd do:* the same fix as the false positives. Signal one alone gives a
+  0.556 gap on these texts, and signal two pulls it down to 0.405 because
+  it can't read short pieces: three of my five are one sentence. A signal two
+  that steps aside (weight 0) when a text has fewer than three sentences
+  would leave short pieces to signal one.
+- *Why I stopped:* same reason as above, one change. I'm also not lowering the
+  target: 0.50 is still the right number for "clear cases land well inside
+  their own label", and missing it is the finding.
 
 **The trade I'd make if this ran for real:**
 
 <!-- Two sentences. Fewer wrong accusations means more AI text getting through.
      Say which way you'd go and WHO PAYS FOR IT. -->
 
-
+I'd keep going the way I already went: a high "ai" cutoff and a wide "unsure"
+band, so far fewer real writers get accused, and I'd accept that most
+lightly-edited AI text gets through as "unsure". The cost lands on honest
+writers competing with people who used AI and weren't caught, and on whoever
+reviews the larger pile of "unsure" cases. I think that's fairer than putting
+it on writers like the non-native speaker in FP03, who would otherwise be
+accused and are least able to argue back.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
